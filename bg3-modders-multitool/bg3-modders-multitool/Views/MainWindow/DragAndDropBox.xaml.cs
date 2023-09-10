@@ -21,7 +21,6 @@ namespace bg3_modders_multitool.Views
         public DragAndDropBox()
         {
             InitializeComponent();
-            DataContext = new ViewModels.DragAndDropBox();
         }
 
         /// <summary>
@@ -33,6 +32,7 @@ namespace bg3_modders_multitool.Views
             var vm = DataContext as ViewModels.DragAndDropBox;
             await vm.ProcessDrop(e.Data);
         }
+        
 
         private void Grid_DragEnter(object sender, DragEventArgs e)
         {
@@ -90,6 +90,18 @@ namespace bg3_modders_multitool.Views
                 OnClick();
             }
             rectMouseDown = false;
+        }
+        
+        private void RepackButton_Click(object sender, RoutedEventArgs e)
+        {
+            Services.DragAndDropHelper.ProcessWorkspace(new []{ Services.DragAndDropHelper.LastUsedWorkspace});
+        }
+
+        private void ResetButton_Click(object sender, RoutedEventArgs e)
+        {
+            Services.DragAndDropHelper.LastUsedWorkspace = "";
+            var vm = DataContext as ViewModels.DragAndDropBox;
+            vm.PackingVisibility = Visibility.Visible;
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿/// <summary>
 /// Helper for processing drag and drop events
 /// </summary>
+
 namespace bg3_modders_multitool.Services
 {
     using Alphaleonis.Win32.Filesystem;
@@ -18,12 +19,15 @@ namespace bg3_modders_multitool.Services
     using bg3_modders_multitool.Properties;
     using bg3_modders_multitool.Views.Utilities;
 
+
     public static class DragAndDropHelper
     {
         /// <summary>
         /// Path to the temp directory to use.
         /// </summary>
         public static string TempFolder = Path.GetTempPath() + "BG3ModPacker";
+
+        public static string LastUsedWorkspace = "";
 
         /// <summary>
         /// Generates a list of meta.lsx files, representing the mods present.
@@ -33,6 +37,7 @@ namespace bg3_modders_multitool.Services
         public static List<string> GetMetalsxList(string[] pathlist)
         {
             var metaList = new List<string>();
+
             foreach (string mod in pathlist)
             {
                 foreach (string file in Directory.GetFiles(mod))
@@ -49,24 +54,28 @@ namespace bg3_modders_multitool.Services
             {
                 foreach (string mod in pathlist)
                 {
-                    var invokeResult = Application.Current.Dispatcher.Invoke(() => {
-                        var addMeta = new AddMissingMetaLsx(mod);
-                        var result = addMeta.ShowDialog();
-                        if (result == true)
-                        {
-                            if (!string.IsNullOrEmpty(addMeta.MetaPath))
-                                metaList.Add(addMeta.MetaPath);
-                        }
-                        return result;
-                    });
+                    var invokeResult = Application.Current.Dispatcher.Invoke(
+                        () => {
+                            var addMeta = new AddMissingMetaLsx(mod);
+                            var result = addMeta.ShowDialog();
+
+                            if (result == true)
+                            {
+                                if (!string.IsNullOrEmpty(addMeta.MetaPath))
+                                    metaList.Add(addMeta.MetaPath);
+                            }
+
+                            return result;
+                        });
                 }
 
-                if(metaList.Count == 0)
+                if (metaList.Count == 0)
                 {
                     // meta.lsx not found, discontinue
                     throw new Exception(Properties.Resources.MetaLsxNotFound);
                 }
             }
+
             return metaList;
         }
 
@@ -78,11 +87,14 @@ namespace bg3_modders_multitool.Services
         public static void PackMod(string fullpath, string destination)
         {
             Directory.CreateDirectory(TempFolder);
-            var packageOptions = new PackageCreationOptions() { 
+
+            var packageOptions = new PackageCreationOptions()
+            {
                 Version = Game.BaldursGate3.PAKVersion(),
                 Priority = 21,
                 Compression = CompressionMethod.LZ4
             };
+
             try
             {
                 new Packager().CreatePackage(destination, fullpath, packageOptions);
@@ -100,20 +112,23 @@ namespace bg3_modders_multitool.Services
         /// <param name="metaList">The list of meta.lsx file paths.</param>
         public static void GenerateInfoJson(Dictionary<string, List<string>> metaList)
         {
-            var info = new InfoJson {
+            var info = new InfoJson
+            {
                 Mods = new List<MetaLsx>()
             };
             var created = DateTime.Now;
-            
-            foreach(KeyValuePair<string, List<string>> modGroup in metaList)
+
+            foreach (KeyValuePair<string, List<string>> modGroup in metaList)
             {
                 var mods = new List<MetaLsx>();
+
                 foreach (var meta in modGroup.Value)
                 {
                     var metadata = ReadMeta(meta, created, modGroup);
                     mods.Add(metadata);
                     GeneralHelper.WriteToConsole(Properties.Resources.MetadataCreated, metadata);
                 }
+
                 info.Mods.AddRange(mods);
             }
 
@@ -122,15 +137,18 @@ namespace bg3_modders_multitool.Services
             {
                 var paks = Directory.GetFiles(TempFolder);
                 var pakCount = 1;
+
                 foreach (var pak in paks)
                 {
                     byte[] contentBytes = File.ReadAllBytes(pak);
+
                     if (pakCount == paks.Length)
                         md5.TransformFinalBlock(contentBytes, 0, contentBytes.Length);
                     else
                         md5.TransformBlock(contentBytes, 0, contentBytes.Length, contentBytes, 0);
                     pakCount++;
                 }
+
                 info.MD5 = BitConverter.ToString(md5.Hash).Replace("-", "").ToLower();
             }
 
@@ -139,18 +157,21 @@ namespace bg3_modders_multitool.Services
             GeneralHelper.WriteToConsole(Properties.Resources.InfoGenerated);
         }
 
-        public static MetaLsx ReadMeta(string meta, DateTime? created = null, KeyValuePair<string, List<string>>? modGroup = null)
+        public static MetaLsx ReadMeta(string meta, DateTime? created = null,
+            KeyValuePair<string, List<string>>? modGroup = null)
         {
             // generate info.json section
             XmlDocument doc = new XmlDocument();
             doc.Load(meta);
 
             var moduleInfo = doc.SelectSingleNode("//node[@id='ModuleInfo']");
+
             var metadata = new MetaLsx
             {
                 Author = moduleInfo.SelectSingleNode("attribute[@id='Author']")?.Attributes["value"].InnerText,
                 Name = moduleInfo.SelectSingleNode("attribute[@id='Name']")?.Attributes["value"].InnerText,
-                Description = moduleInfo.SelectSingleNode("attribute[@id='Description']")?.Attributes["value"].InnerText,
+                Description =
+                    moduleInfo.SelectSingleNode("attribute[@id='Description']")?.Attributes["value"].InnerText,
                 Version = moduleInfo.SelectSingleNode("attribute[@id='Version']")?.Attributes["value"].InnerText,
                 Folder = moduleInfo.SelectSingleNode("attribute[@id='Folder']")?.Attributes["value"].InnerText,
                 UUID = moduleInfo.SelectSingleNode("attribute[@id='UUID']")?.Attributes["value"].InnerText,
@@ -160,21 +181,27 @@ namespace bg3_modders_multitool.Services
             };
 
             var dependencies = doc.SelectSingleNode("//node[@id='Dependencies']");
+
             if (dependencies != null)
             {
                 var moduleDescriptions = dependencies.SelectNodes("node[@id='ModuleShortDesc']");
+
                 foreach (XmlNode moduleDescription in moduleDescriptions)
                 {
                     var depInfo = new ModuleShortDesc
                     {
-                        Name = moduleDescription.SelectSingleNode("attribute[@id='Name']").Attributes["value"].InnerText,
-                        Version = moduleDescription.SelectSingleNode("attribute[@id='Version']").Attributes["value"].InnerText,
-                        Folder = moduleDescription.SelectSingleNode("attribute[@id='Folder']").Attributes["value"].InnerText,
+                        Name = moduleDescription.SelectSingleNode("attribute[@id='Name']").Attributes["value"]
+                            .InnerText,
+                        Version = moduleDescription.SelectSingleNode("attribute[@id='Version']").Attributes["value"]
+                            .InnerText,
+                        Folder = moduleDescription.SelectSingleNode("attribute[@id='Folder']").Attributes["value"]
+                            .InnerText,
                         UUID = moduleDescription.SelectSingleNode("attribute[@id='UUID']").Attributes["value"].InnerText
                     };
                     metadata.Dependencies.Add(depInfo);
                 }
             }
+
             return metadata;
         }
 
@@ -188,10 +215,12 @@ namespace bg3_modders_multitool.Services
             // save zip next to folder that was dropped
             var parentDir = Directory.GetParent(fullpath);
             var zip = $"{parentDir}\\{name}.zip";
+
             if (File.Exists(zip))
             {
                 File.Delete(zip);
             }
+
             ZipFile.CreateFromDirectory(TempFolder, zip);
             GeneralHelper.WriteToConsole(Properties.Resources.ZipCreated, name);
         }
@@ -217,76 +246,91 @@ namespace bg3_modders_multitool.Services
         /// <returns>Success</returns>
         public async static Task ProcessDrop(IDataObject data)
         {
-            await Task.Run(() => {
-                try
-                {
-                    if (data.GetDataPresent(DataFormats.FileDrop))
+            await Task.Run(
+                () => {
+                    try
                     {
+                        if (!data.GetDataPresent(DataFormats.FileDrop)) return;
                         var fileDrop = data.GetData(DataFormats.FileDrop, true);
+
                         if (fileDrop is string[] filesOrDirectories && filesOrDirectories.Length > 0)
                         {
-                            Directory.CreateDirectory(TempFolder);
-                            CleanTempDirectory();
-                            foreach (string fullPath in filesOrDirectories)
-                            {
-                                // Only accept directory
-                                if (Directory.Exists(fullPath))
-                                {
-                                    var metaList = new Dictionary<string, List<string>>();
-                                    var dirName = new DirectoryInfo(fullPath).Name;
-                                    GeneralHelper.WriteToConsole(Properties.Resources.DirectoryName, dirName);
-                                    if (Directory.Exists(fullPath + "\\Mods"))
-                                    {
-                                        // single mod directory
-                                        metaList.Add(Guid.NewGuid().ToString(), ProcessMod(fullPath, dirName));
-                                    }
-                                    else
-                                    {
-                                        // multiple mod directories?
-                                        foreach (string dir in Directory.GetDirectories(fullPath))
-                                        {
-                                            metaList.Add(Guid.NewGuid().ToString(), ProcessMod(dir, new DirectoryInfo(dir).Name));
-                                        }
-                                    }
-
-                                    if (Properties.Settings.Default.pakToMods)
-                                    {
-                                        var modsFolder = $"{Properties.Settings.Default.gameDocumentsPath}\\Mods";
-                                        if(Directory.Exists(modsFolder))
-                                        {
-                                            File.Move($"{TempFolder}\\{dirName}.pak", $"{modsFolder}\\{dirName}.pak", MoveOptions.ReplaceExisting);
-                                            GeneralHelper.WriteToConsole(Properties.Resources.PakModedToMods, dirName);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        GenerateInfoJson(metaList);
-                                        GenerateZip(fullPath, dirName);
-                                    }
-                                    CleanTempDirectory();
-                                }
-                                else if(File.Exists(fullPath))
-                                {
-                                    var task = Application.Current.Dispatcher.Invoke(() => {
-                                        var vm = App.Current.MainWindow.DataContext as ViewModels.MainWindow;
-                                        return vm.Unpacker.UnpackPakFiles(new List<string> { fullPath }, false);
-                                    });
-                                    task.Wait();
-                                }
-                                else
-                                {
-                                    GeneralHelper.WriteToConsole(Properties.Resources.FailedToProcessWorkspace);
-                                }
-                            }
+                            ProcessWorkspace(filesOrDirectories);
                         }
                     }
-                }
-                catch (Exception ex)
+                    catch (Exception ex)
+                    {
+                        GeneralHelper.WriteToConsole(ex.Message);
+                        LastUsedWorkspace = "";
+                        CleanTempDirectory();
+                    }
+                });
+        }
+
+        public static void ProcessWorkspace(string[] files)
+        {
+            Directory.CreateDirectory(TempFolder);
+            CleanTempDirectory();
+
+            foreach (string fullPath in files)
+            {
+                // Only accept directory
+                if (Directory.Exists(fullPath))
                 {
-                    GeneralHelper.WriteToConsole(ex.Message);
+                    var metaList = new Dictionary<string, List<string>>();
+                    var dirName = new DirectoryInfo(fullPath).Name;
+                    GeneralHelper.WriteToConsole(Properties.Resources.DirectoryName, dirName);
+
+                    if (Directory.Exists(fullPath + "\\Mods"))
+                    {
+                        // single mod directory
+                        metaList.Add(Guid.NewGuid().ToString(), ProcessMod(fullPath, dirName));
+                        LastUsedWorkspace = fullPath;
+                    }
+                    else
+                    {
+                        // multiple mod directories?
+                        foreach (string dir in Directory.GetDirectories(fullPath))
+                        {
+                            metaList.Add(Guid.NewGuid().ToString(), ProcessMod(dir, new DirectoryInfo(dir).Name));
+                        }
+                    }
+
+                    if (Properties.Settings.Default.pakToMods)
+                    {
+                        var modsFolder = $"{Properties.Settings.Default.gameDocumentsPath}\\Mods";
+
+                        if (Directory.Exists(modsFolder))
+                        {
+                            File.Move(
+                                $"{TempFolder}\\{dirName}.pak", $"{modsFolder}\\{dirName}.pak",
+                                MoveOptions.ReplaceExisting);
+                            GeneralHelper.WriteToConsole(Properties.Resources.PakModedToMods, dirName);
+                        }
+                    }
+                    else
+                    {
+                        GenerateInfoJson(metaList);
+                        GenerateZip(fullPath, dirName);
+                    }
+
                     CleanTempDirectory();
                 }
-            });
+                else if (File.Exists(fullPath))
+                {
+                    var task = Application.Current.Dispatcher.Invoke(
+                        () => {
+                            var vm = App.Current.MainWindow.DataContext as ViewModels.MainWindow;
+                            return vm.Unpacker.UnpackPakFiles(new List<string> { fullPath }, false);
+                        });
+                    task.Wait();
+                }
+                else
+                {
+                    LastUsedWorkspace = "";
+                    GeneralHelper.WriteToConsole(Properties.Resources.FailedToProcessWorkspace);
+                }
+            }
         }
 
         /// <summary>
@@ -299,11 +343,13 @@ namespace bg3_modders_multitool.Services
             var fileList = FileHelper.DirectorySearch(path);
             var modName = new DirectoryInfo(path).Name;
             var modDir = $"{TempFolder}\\{modName}";
+
             foreach (var file in fileList)
             {
-                var fileParent = file.Replace(path, string.Empty).Replace("\\\\?\\",string.Empty);
+                var fileParent = file.Replace(path, string.Empty).Replace("\\\\?\\", string.Empty);
                 var fileName = Path.GetFileName(file);
                 var extension = Path.GetExtension(fileName);
+
                 if (!string.IsNullOrEmpty(extension))
                 {
                     var conversionFile = fileName.Replace(extension, string.Empty);
@@ -311,16 +357,19 @@ namespace bg3_modders_multitool.Services
                     // copy to temp dir
                     var mod = $"\\\\?\\{modDir}{fileParent}";
                     var modParent = new DirectoryInfo(mod).Parent.FullName;
+
                     if (string.IsNullOrEmpty(secondExtension))
                     {
                         if (!Directory.Exists(modParent))
                         {
                             Directory.CreateDirectory(modParent);
                         }
+
                         if (File.Exists(mod))
                         {
                             File.Delete(mod);
                         }
+
                         File.Copy(file, mod);
                     }
                     else
@@ -349,27 +398,34 @@ namespace bg3_modders_multitool.Services
         {
             var statsGeneratedDataDir = $"{directory}\\Public\\{modName}\\Stats\\Generated\\Data";
             var sgdInfo = new DirectoryInfo(statsGeneratedDataDir);
+
             if (sgdInfo.Exists)
             {
                 var sgdDirs = sgdInfo.GetDirectories();
                 var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
                 foreach (var dir in sgdDirs)
                 {
                     var files = dir.GetFiles("*.txt", System.IO.SearchOption.AllDirectories);
                     var fileName = $"{dir.Parent.FullName}\\__MT_GEN_{dir.Name}_{now}.txt";
-                    using (System.IO.FileStream fs = new System.IO.FileStream(fileName, System.IO.FileMode.Append, System.IO.FileAccess.Write))
-                    using (System.IO.StreamWriter sw = new System.IO.StreamWriter(fs))
-                    {
-                        sw.WriteLine($"// ==== Generated with ShinyHobo's BG3 Modder's Multitool ====");
-                        foreach (var file in files)
+
+                    using (System.IO.FileStream fs = new System.IO.FileStream(
+                               fileName, System.IO.FileMode.Append, System.IO.FileAccess.Write))
+                        using (System.IO.StreamWriter sw = new System.IO.StreamWriter(fs))
                         {
-                            sw.WriteLine($"// === {file.Name} ===");
-                            using (var input = new System.IO.StreamReader(file.FullName))
+                            sw.WriteLine($"// ==== Generated with ShinyHobo's BG3 Modder's Multitool ====");
+
+                            foreach (var file in files)
                             {
-                                sw.WriteLine(input.ReadToEnd());
+                                sw.WriteLine($"// === {file.Name} ===");
+
+                                using (var input = new System.IO.StreamReader(file.FullName))
+                                {
+                                    sw.WriteLine(input.ReadToEnd());
+                                }
                             }
                         }
-                    }
+
                     Directory.Delete(dir.FullName, true);
                 }
             }
@@ -385,26 +441,30 @@ namespace bg3_modders_multitool.Services
         {
             // Clean out temp folder
             var tempFolder = new DirectoryInfo(TempFolder);
+
             foreach (FileInfo file in tempFolder.GetFiles())
             {
                 file.Delete();
             }
+
             foreach (DirectoryInfo dir in tempFolder.GetDirectories())
             {
                 dir.Delete(true);
             }
 
             // Pack mod
-            var destination =  $"{TempFolder}\\{dirName}.pak";
+            var destination = $"{TempFolder}\\{dirName}.pak";
             GeneralHelper.WriteToConsole(Resources.Destination, destination);
             GeneralHelper.WriteToConsole(Resources.AttemptingToPack);
             var buildDir = BuildPack(path);
-            if(buildDir != null)
+
+            if (buildDir != null)
             {
                 PackMod(buildDir, destination);
                 Directory.Delete(buildDir, true);
                 return GetMetalsxList(Directory.GetDirectories(path + "\\Mods"));
             }
+
             return new List<string>();
         }
     }

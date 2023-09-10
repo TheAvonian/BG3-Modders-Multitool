@@ -12,6 +12,7 @@ namespace bg3_modders_multitool.ViewModels
         {
             PackAllowed = true;
             _packAllowedDrop = PackAllowed;
+            PackingVisibility = Visibility.Visible;
         }
 
         public async Task ProcessDrop(IDataObject data)
@@ -20,6 +21,8 @@ namespace bg3_modders_multitool.ViewModels
             _packAllowedDrop = false;
             await Services.DragAndDropHelper.ProcessDrop(data).ContinueWith(delegate {
                 PackAllowed = true;
+
+                PackingVisibility = Services.DragAndDropHelper.LastUsedWorkspace.Length != 0 ? Visibility.Collapsed : Visibility.Visible;
             });
         }
 
@@ -52,6 +55,28 @@ namespace bg3_modders_multitool.ViewModels
             get { return _descriptionColor; }
             set {
                 _descriptionColor = value;
+                OnNotifyPropertyChanged();
+            }
+        }
+
+        private Visibility _packingVisibility;
+
+        public Visibility PackingVisibility
+        {
+            get => _packingVisibility;
+            set {
+                _packingVisibility = value;
+                PackingNonVisibility = value == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+                OnNotifyPropertyChanged();
+            }
+        }
+
+        private Visibility _packingNonVisibility;
+        public Visibility PackingNonVisibility
+        {
+            get => _packingNonVisibility;
+            set {
+                _packingNonVisibility = value;
                 OnNotifyPropertyChanged();
             }
         }
